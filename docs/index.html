@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferrotap — a local HTTP(S) debugging proxy</title>
+<meta name="description" content="Ferrotap is an open-source HTTP/HTTPS debugging proxy: capture and inspect traffic, set breakpoints, rewrite requests with rules, replay and compose, and read packet captures — all on your own machine.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c0603a'/%3E%3Ctext x='16' y='23' font-size='20' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%23fff'%3EF%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="#top"><span class="mark">F</span> Ferrotap</a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#https">HTTPS setup</a>
+      <a href="#filters">Filters</a>
+      <a class="ext" href="https://github.com/d4r5hE/ferrotap">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero wrap">
+    <p class="eyebrow">Open source · Rust · runs on your machine</p>
+    <h1>See exactly what your apps send.</h1>
+    <p class="lede">
+      Ferrotap is a local HTTP/HTTPS debugging proxy. Capture and inspect every request and
+      response, pause and edit them with breakpoints, rewrite traffic with rules, replay and
+      compose from scratch, and even open packet captures — in one desktop app, with nothing
+      leaving your computer.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/d4r5hE/ferrotap">View on GitHub</a>
+      <a class="btn" href="#install">Install</a>
+    </div>
+    <p class="note">No account, no cloud, no telemetry. Your traffic stays on your device.</p>
+  </section>
+
+  <section id="features" class="wrap">
+    <h2>What it does</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>Capture &amp; inspect</h3>
+        <p>A live grid of requests with a rich inspector: headers, query &amp; form params, cookies,
+        raw view, pretty JSON (JSONP/NDJSON aware), XML/HTML, JavaScript, a hex view, and inline
+        image preview for both requests and responses.</p>
+      </article>
+      <article class="card">
+        <h3>Decode HTTPS</h3>
+        <p>Decrypt TLS using a root certificate Ferrotap generates <strong>locally, just for your
+        install</strong> — never a shared key. Inspect encrypted traffic the same as plain HTTP.</p>
+      </article>
+      <article class="card">
+        <h3>Powerful filters</h3>
+        <p>Filter the grid with simple keys (<code>host:</code>, <code>status:5xx</code>,
+        <code>size:&gt;100000</code>, <code>-host:ads</code>) or a full mitmproxy-style expression
+        language (<code>~m POST &amp; ~c 5xx</code>). Packet captures use a Wireshark-style syntax.</p>
+      </article>
+      <article class="card">
+        <h3>Breakpoints</h3>
+        <p>Pause a request or response and edit it before it continues. Target them with the same
+        expression language — method, URL, host, status, headers, content-type and body
+        (<code>~s &amp; ~t json</code>).</p>
+      </article>
+      <article class="card">
+        <h3>Auto-responder &amp; rewrite</h3>
+        <p>Map URLs to local files or other hosts, serve canned responses, rewrite headers and
+        bodies, and throttle bandwidth. Match by <code>contains</code>, <code>glob</code>
+        (<code>*/api/*</code>) or <code>regex</code>, plus header / cookie / body / status
+        conditions.</p>
+      </article>
+      <article class="card">
+        <h3>Compose &amp; replay</h3>
+        <p>Build and resend requests, organize them into collections with environment variables, and
+        assert on the responses. Paste a <code>curl</code> command to import it, or copy any session
+        as cURL, HTTPie, wget, PowerShell, Python, fetch, C#, Go or Rust.</p>
+      </article>
+      <article class="card">
+        <h3>Packet captures</h3>
+        <p>Open and save <code>.pcap</code> / <code>.pcapng</code>, decode protocols, follow a TCP
+        stream, and browse conversations, endpoints and an I/O graph — a built-in lightweight
+        packet view.</p>
+      </article>
+      <article class="card">
+        <h3>WebSocket, SSE &amp; gRPC</h3>
+        <p>A streams view shows WebSocket, Server-Sent Events and gRPC messages frame by frame, with
+        timing, byte counts and decoded close codes.</p>
+      </article>
+      <article class="card">
+        <h3>Import &amp; export</h3>
+        <p>Interchange with the rest of your toolkit: HAR 1.2, Fiddler SAZ archives, Postman
+        collections, and Ferrotap's own <code>.ftap</code> format.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="install" class="wrap">
+    <h2>Install</h2>
+    <p>Grab a build from the releases page, or build it yourself with Rust:</p>
+    <div class="cols">
+      <div>
+        <h3>From a release</h3>
+        <p><a class="btn" href="https://github.com/d4r5hE/ferrotap/releases">Download from GitHub Releases</a></p>
+        <p class="note">Pick the archive for your platform, unzip, and run the executable.</p>
+      </div>
+      <div>
+        <h3>From source</h3>
+        <pre><code>git clone https://github.com/d4r5hE/ferrotap
+cd ferrotap
+cargo run --release</code></pre>
+        <p class="note">Needs a recent <a href="https://rustup.rs">Rust toolchain</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="https" class="wrap">
+    <h2>Trusting HTTPS traffic</h2>
+    <div class="callout">
+      <p><strong>About the certificate.</strong> To read HTTPS, Ferrotap acts as a man-in-the-middle
+      using its own root certificate authority. That CA is <strong>created on your machine the first
+      time you need it, and its private key never leaves your device.</strong> There is no shared or
+      downloadable “Ferrotap cert” to install — publishing one with a known private key would let
+      anyone decrypt anyone's traffic. You trust <em>your own</em> CA, and only you hold its key.</p>
+    </div>
+    <ol class="steps">
+      <li>In Ferrotap, open the HTTPS / certificate settings and <strong>export your root CA</strong>
+      (a <code>.cer</code>/<code>.crt</code> file) — or let the app install it for you if it offers to.</li>
+      <li>Trust that file in your system or browser store:
+        <ul>
+          <li><strong>Windows:</strong> double-click the file → <em>Install Certificate</em> →
+          <em>Local Machine</em> → place it in <em>Trusted Root Certification Authorities</em>.</li>
+          <li><strong>macOS:</strong> open it in <em>Keychain Access</em> (System keychain), then set
+          it to <em>Always Trust</em>.</li>
+          <li><strong>Firefox</strong> (its own store): <em>Settings → Privacy &amp; Security →
+          Certificates → View Certificates → Authorities → Import</em>, and trust it for websites.</li>
+        </ul>
+      </li>
+      <li>Point your system or browser proxy at Ferrotap's listener (the app shows the address), or
+      use its system-proxy toggle.</li>
+    </ol>
+    <p class="note">Only trust a root CA you generated yourself, and remove it when you're done if the
+    machine isn't solely yours.</p>
+  </section>
+
+  <section id="filters" class="wrap">
+    <h2>Filter cheat sheet</h2>
+    <div class="cols">
+      <div>
+        <h3>Session grid — keys</h3>
+        <pre><code>host:example.com
+status:5xx          # class, range 400-499, list 401,403
+method:POST
+size:&gt;100000         # bytes; dur:&gt;=2000 ms
+path:/api  scheme:https  ip:1.2.3.4
+type:json  header:authorization  body:error
+-host:ads.com       # leading - excludes</code></pre>
+      </div>
+      <div>
+        <h3>Session grid — expression (mitmproxy-style)</h3>
+        <pre><code>~m GET &amp; ~c 2xx
+~d "api\.example\." | ~t json
+~u /v1/ &amp; ~h authorization
+~b "\"error\""      # request or response body
+! ~s                # not a response
+</code></pre>
+      </div>
+      <div>
+        <h3>Breakpoints</h3>
+        <pre><code>~q                 # request stage
+~s &amp; ~c 5xx         # failing responses
+~m POST &amp; ~u /login
+~t json            # content-type
+~h x-debug         # a header
+~b secret          # body</code></pre>
+      </div>
+      <div>
+        <h3>Packet captures (Wireshark-style)</h3>
+        <pre><code>tcp.port == 443
+ip.addr == 10.0.0.0/24
+tcp.port in {80 443 8080}
+http.response.code &gt;= 400
+dns.qry.name contains "api"
+frame.len &gt; 1000 &amp;&amp; !dns</code></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p><strong>Ferrotap</strong> — free and open source. Everything runs locally; nothing is sent anywhere.</p>
+    <p><a href="https://github.com/d4r5hE/ferrotap">Source &amp; issues on GitHub</a></p>
+  </div>
+</footer>
+</body>
+</html>

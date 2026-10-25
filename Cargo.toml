@@ -1,0 +1,61 @@
+[package]
+name = "ferrotap"
+version = "0.1.0"
+edition = "2021"
+default-run = "ferrotap"
+
+[lib]
+name = "ferrotap"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ferrotap_proxy"
+path = "src/main.rs"
+
+[[bin]]
+name = "ferrotap_grid"
+path = "src/bin/ferrotap_grid.rs"
+
+[[bin]]
+name = "ferrotap"
+path = "src/bin/ferrotap.rs"
+
+[dependencies]
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "aws-lc-rs", "tls12"] }
+webpki-roots = "1"
+tower-service = "0.3"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+hudsucker = { version = "0.25.0", features = ["http2"] }
+rcgen = "0.14"
+rustls = "0.23"
+http-body-util = "0.1"
+# Native UI (immediate-mode, OpenGL backend: lighter to build than wgpu)
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow"] }
+egui = "0.36.2"
+egui_extras = "0.36.2"
+winreg = "0.56.0"
+sha1 = "0.10"
+sha2 = "0.10"
+time = "0.3"
+base64 = "0.22"
+regex = "1"
+flate2 = "1.1.10"
+brotli = "9.0.0"
+zstd = "0.14.2"
+# Password-protected snapshots (same build rustls already uses)
+aws-lc-rs = { version = "1.18", default-features = false, features = ["aws-lc-sys", "prebuilt-nasm"] }
+# Scripts and plugins (sandboxed embedded language; "sync" so the proxy threads can run them)
+rhai = { version = "1", features = ["sync"] }
+# Image viewer (already built for eframe; add the common web formats)
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico"] }
+
+[dev-dependencies]
+tokio-rustls = "0.26"
+tempfile = "3"
+
+[[bin]]
+name = "ferrotap_mcp"
+path = "src/bin/ferrotap_mcp.rs"

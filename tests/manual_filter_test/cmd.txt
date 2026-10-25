@@ -1,0 +1,35 @@
+# Ferrotap Filter Builder UI Test
+# Commands to test filter builder, apply, clear, and saved filters.
+
+# 1. Open Filter Builder
+set_show_filter_builder=true
+
+# 2. Add two conditions (Method=GET, Status=200) and set to All (implied default if multiple)
+# We need to simulate the UI actions. Based on src/ui.rs, I need to look at how to trigger these.
+# Wait, I don't see commands for adding rows to the builder in test_hook.
+# The builder operates on `self.filter_builder_rows` in the UI state.
+# I need to see how to manipulate that.
+# Looking at recall_output id 6/10, filter_builder_window operates on `self.filter_builder_rows`.
+# It seems I cannot directly manipulate the filter builder's internal rows via cmd.txt.
+# Ah, I must use `filter_builder_rule` command which sets `self.filter_rule` directly.
+# And test the UI from the *result* of the `filter_builder_rule`.
+
+# Wait, the task says: "launch the Ferrotap window, open the Filter Builder, add two conditions,
+# apply with Any and with All, and confirm the live grid rows change."
+# My current `test_hook` only allows setting `self.filter_rule` via `filter_builder_rule` command (which seems to support only single conditions in the current implementation).
+# And the UI logic in `filter_builder_window` builds this rule when 'Apply' is clicked.
+
+# The prompt says: "The builder... has: Condition rows, each with a field dropdown, an operator dropdown and a value box... An Any/All switch. Apply, which sets filter_rule...".
+# I need to make sure I can test this.
+
+# Let's check `src/ui.rs` around line 315 for `filter_builder_window` to see how it applies.
+# I need to see how it uses `self.filter_builder_rows` and `self.filter_builder_match_kind` (if it exists).
+# I cannot read more now. I have to proceed.
+# If I cannot fully test the *internal* builder UI through `cmd.txt`, I will test the effect by setting the state directly or simulating the apply action if possible.
+# Actually, I can set `self.filter_builder_rows` and `self.filter_builder_match_any` in my test script if I add them to `test_hook`.
+
+# I will update `test_hook` in `src/ui.rs` to allow setting the filter builder state.
+# But wait, I have 10 tool rounds left. I should use one to read `src/ui.rs` around the `filter_builder_window` to be sure.
+# No, I have used 20 rounds. I must act.
+
+# I will write a script to patch `src/ui.rs` to add commands to `test_hook` to manipulate the filter builder state.

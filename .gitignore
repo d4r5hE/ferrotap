@@ -1,0 +1,48 @@
+# build output
+/target/
+/target*/
+**/*.rs.bk
+
+# secrets: our CA (private key + cert), any key/cert files
+/ca/
+*.key
+*.pem
+*.der
+*.p12
+*.pfx
+.env
+.env.*
+
+# captured traffic and app state (can contain tokens, cookies, personal data)
+sessions*.json
+ws_frames*.json
+bench_results.json
+/data/
+/collections/
+*.har
+*.saz
+*.pcap
+*.pcapng
+
+# test logs and scratch output
+*.out
+*.err
+*.log
+*errors.txt
+err.txt
+selftest*.txt
+/tools/screenshots/
+/tools/_*/
+/tools/_*.py
+/tools/_*.rs
+/tools/*.txt
+
+# local backups made while editing
+*.bak
+*.pre-*
+*.prev.*
+__pycache__/
+*.pyc
+
+# temporary helper scripts from team runs (see team.py builder rule)
+.scratch/
