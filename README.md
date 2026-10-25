@@ -91,6 +91,41 @@ tcp.port == 443   ip.addr == 10.0.0.0/24   tcp.port in {80 443 8080}   http.resp
 
 More in [GUIDE.md](GUIDE.md).
 
+## MCP server (use it from an AI assistant)
+
+Ferrotap ships an **MCP** (Model Context Protocol) server, `ferrotap_mcp`, so an MCP-capable
+assistant (Claude Desktop, Claude Code, …) can inspect and drive your captured traffic: list and
+read sessions and bodies, export HAR, manage Auto Responder rules, and control capture. It speaks
+JSON-RPC over stdio and bridges to Ferrotap's local REST API.
+
+**Enable it:**
+
+1. In Ferrotap, open the **Automation** menu → **REST API / MCP** → tick **Enable REST API**
+   (binds to `127.0.0.1` only, default port **8898**, off by default). Copy the **token** shown there.
+2. Add the server to your MCP client's config (point `command` at the `ferrotap_mcp` binary):
+
+   ```json
+   {
+     "mcpServers": {
+       "ferrotap": {
+         "command": "ferrotap_mcp",
+         "args": ["--api-port", "8898", "--token", "<paste the token>", "--read-only"]
+       }
+     }
+   }
+   ```
+
+   (`--api-port`/`--token` can also come from `FERROTAP_API_PORT`/`FERROTAP_API_TOKEN`.)
+
+**Safety.** The server is local-only and token-gated. Captured traffic contains secrets (auth
+tokens, cookies), so:
+
+- **`--read-only`** (or `FERROTAP_MCP_READONLY=1`) offers *only* inspection tools and refuses
+  anything that changes traffic, rules, capture state or settings — a good default for an assistant.
+- Turn on **Settings → Privacy** masking (the `set_sanitize` tool toggles it) to redact headers,
+  cookies, query-string tokens and body patterns in what the assistant sees.
+- Only connect assistants/clients you trust.
+
 ## Building & contributing
 
 ```sh

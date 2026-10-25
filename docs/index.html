@@ -17,6 +17,7 @@
       <a href="#install">Install</a>
       <a href="#https">HTTPS setup</a>
       <a href="#filters">Filters</a>
+      <a href="#mcp">MCP</a>
       <a class="ext" href="https://github.com/d4r5hE/ferrotap">GitHub</a>
     </nav>
   </div>
@@ -185,6 +186,35 @@ http.response.code &gt;= 400
 dns.qry.name contains "api"
 frame.len &gt; 1000 &amp;&amp; !dns</code></pre>
       </div>
+    </div>
+  </section>
+
+  <section id="mcp" class="wrap">
+    <h2>Use it from an AI assistant (MCP)</h2>
+    <p>Ferrotap ships an <strong>MCP</strong> server, <code>ferrotap_mcp</code>, so an MCP-capable
+    assistant (Claude Desktop, Claude Code, …) can inspect and drive your captured traffic — list and
+    read sessions, export HAR, manage rules, and control capture. It speaks JSON-RPC over stdio and
+    bridges to Ferrotap's local, token-gated REST API.</p>
+    <ol class="steps">
+      <li>In Ferrotap, open <strong>Automation → REST API / MCP</strong>, tick <strong>Enable REST
+      API</strong> (binds to <code>127.0.0.1</code>, default port <code>8898</code>), and copy the
+      <strong>token</strong>.</li>
+      <li>Add the server to your MCP client's config:
+        <pre><code>{
+  "mcpServers": {
+    "ferrotap": {
+      "command": "ferrotap_mcp",
+      "args": ["--api-port", "8898", "--token", "&lt;token&gt;", "--read-only"]
+    }
+  }
+}</code></pre>
+      </li>
+    </ol>
+    <div class="callout">
+      <p><strong>Safety.</strong> Captured traffic holds secrets, so the server is local-only and
+      token-gated. Use <code>--read-only</code> to offer the assistant inspection tools only (no
+      changes to traffic, rules or settings), and turn on <em>Settings → Privacy</em> masking to
+      redact tokens and cookies in what it sees. Only connect assistants you trust.</p>
     </div>
   </section>
 </main>
