@@ -41,7 +41,7 @@ fn stub() -> Stub {
 }
 
 fn rpc(api: &dyn ApiClient, v: Value) -> Value {
-    serde_json::from_str(&handle_line(api, &v.to_string()).expect("a response")).unwrap()
+    serde_json::from_str(&handle_line(api, false, &v.to_string()).expect("a response")).unwrap()
 }
 
 fn call_tool(api: &dyn ApiClient, name: &str, args: Value) -> (bool, String) {
@@ -58,12 +58,12 @@ fn initialize_and_notifications() {
     assert_eq!(r["result"]["protocolVersion"], "2025-03-26");
     assert!(r["result"]["capabilities"]["tools"].is_object());
     assert_eq!(r["result"]["serverInfo"]["name"], "ferrotap");
-    assert!(handle_line(&s, r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#).is_none());
+    assert!(handle_line(&s, false, r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#).is_none());
     assert_eq!(rpc(&s, json!({"jsonrpc": "2.0", "id": "p", "method": "ping"}))["result"], json!({}));
     assert_eq!(rpc(&s, json!({"jsonrpc": "2.0", "id": 2, "method": "nope"}))["error"]["code"], -32601);
-    let bad: Value = serde_json::from_str(&handle_line(&s, "{not json").unwrap()).unwrap();
+    let bad: Value = serde_json::from_str(&handle_line(&s, false, "{not json").unwrap()).unwrap();
     assert_eq!(bad["error"]["code"], -32700);
-    assert!(handle_line(&s, "   ").is_none());
+    assert!(handle_line(&s, false, "   ").is_none());
 }
 
 #[test]
@@ -79,7 +79,29 @@ fn tools_list_has_schemas() {
         assert_eq!(t["inputSchema"]["type"], "object");
         assert!(!t["description"].as_str().unwrap().is_empty());
     }
-    assert_eq!(list.len(), tools().len());
+    assert_eq!(list.len(), tools(false).len());
+}
+
+#[test]
+fn read_only_hides_and_refuses_mutating_tools() {
+    let s = stub();
+    // tools/list in read-only mode offers only inspection tools.
+    let r: Value = serde_json::from_str(&handle_line(&s, true, &json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).to_string()).unwrap()).unwrap();
+    let names: Vec<String> = r["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap().to_string()).collect();
+    assert!(names.contains(&"list_sessions".to_string()) && names.contains(&"export_har".to_string()));
+    for blocked in ["clear_sessions", "add_rule", "delete_sessions", "replay_session", "set_sanitize", "set_system_proxy"] {
+        assert!(!names.contains(&blocked.to_string()), "{blocked} should be hidden in read-only");
+    }
+    // Calling a mutating tool in read-only mode is refused (isError), without hitting the API.
+    let call = json!({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "clear_sessions", "arguments": {}}});
+    let r: Value = serde_json::from_str(&handle_line(&s, true, &call.to_string()).unwrap()).unwrap();
+    assert_eq!(r["result"]["isError"], true);
+    assert!(r["result"]["content"][0]["text"].as_str().unwrap().contains("read-only"));
+    assert!(s.calls.borrow().is_empty(), "no API call should have been made");
+    // A read tool still works in read-only mode.
+    let call = json!({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "status", "arguments": {}}});
+    let r: Value = serde_json::from_str(&handle_line(&s, true, &call.to_string()).unwrap()).unwrap();
+    assert_eq!(r["result"]["isError"], false);
 }
 
 #[test]
@@ -119,7 +141,7 @@ fn serve_reads_lines() {
     let s = stub();
     let input = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n";
     let mut out = Vec::new();
-    serve(&s, &input[..], &mut out).unwrap();
+    serve(&s, false, &input[..], &mut out).unwrap();
     let lines: Vec<&str> = std::str::from_utf8(&out).unwrap().lines().collect();
     assert_eq!(lines.len(), 2);
     assert!(lines[1].contains("\"id\":2"));

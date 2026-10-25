@@ -64,13 +64,19 @@ fn mark_delete_select_and_rules() {
 
 #[test]
 fn headless_refuses_window_actions_and_sanitize_masks() {
-    let (srv, _sh, _rx) = setup("headless", 1);
+    let (srv, sh, _rx) = setup("headless", 1);
     assert_eq!(call(&srv, "POST", "/launch", Some(json!({"what": "browser"}))).0, 409);
     assert_eq!(call(&srv, "POST", "/system-proxy", Some(json!({"on": true}))).0, 409);
     assert_eq!(call(&srv, "GET", "/sessions/1", None).1["request_headers"]["authorization"], "Bearer topsecret");
     assert_eq!(call(&srv, "POST", "/sanitize", Some(json!({"on": true}))).0, 200);
     let masked = call(&srv, "GET", "/sessions/1", None).1["request_headers"]["authorization"].clone();
     assert_ne!(masked, json!("Bearer topsecret"));
+    // The session LIST (summaries) also redacts tokens in the URL when sanitize is on.
+    sh.lock().unwrap().sessions.push(rec(9, "https://a.test/9?token=secret"));
+    let list = call(&srv, "GET", "/sessions", None).1;
+    let urls: Vec<String> = list["sessions"].as_array().unwrap().iter().map(|s| s["url"].as_str().unwrap_or("").to_string()).collect();
+    assert!(urls.iter().any(|u| u.contains("token=") && u.contains("[REDACTED]")), "url not masked: {urls:?}");
+    assert!(!urls.iter().any(|u| u.contains("secret")), "token leaked in list: {urls:?}");
 }
 
 #[test]
@@ -108,7 +114,7 @@ fn replay_and_snapshots() {
 
 #[test]
 fn mcp_lists_and_dispatches_new_tools() {
-    let names: Vec<String> = ferrotap::auto_mcp::tools().iter().map(|t| t["name"].as_str().unwrap().to_string()).collect();
+    let names: Vec<String> = ferrotap::auto_mcp::tools(false).iter().map(|t| t["name"].as_str().unwrap().to_string()).collect();
     for want in ["mark_sessions", "delete_sessions", "select_sessions", "replay_session", "clear_rules", "list_snapshots", "save_snapshot", "snapshot_details", "start_capture_with", "set_system_proxy", "open_https_settings", "set_sanitize"] {
         assert!(names.contains(&want.to_string()), "{want}");
     }
@@ -144,6 +150,6 @@ fn filter_and_autosave() {
     assert_eq!((st, v["enabled"].clone(), v["interval_min"].clone(), v["keep"].clone()), (200, json!(true), json!(1), json!(3)));
     assert_eq!(rx.try_recv().unwrap(), ApiCmd::ReloadAutosave);
     assert!(ferrotap::data_io::AutoSaveCfg::load(dir.path()).enabled);
-    let names: Vec<String> = ferrotap::auto_mcp::tools().iter().map(|t| t["name"].as_str().unwrap().to_string()).collect();
+    let names: Vec<String> = ferrotap::auto_mcp::tools(false).iter().map(|t| t["name"].as_str().unwrap().to_string()).collect();
     assert!(names.iter().any(|n| n == "apply_filter") && names.iter().any(|n| n == "set_autosave"));
 }

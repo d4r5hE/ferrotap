@@ -280,7 +280,14 @@ pub fn route(req: &HttpReq, token: &str, shared: &SharedState, cmds: &Sender<Api
             let list = filter_sessions(&sh.sessions, req.q("host"), req.q("status"), req.q("method"));
             let total = list.len();
             let limit = req.q("limit").and_then(|l| l.parse::<usize>().ok()).unwrap_or(usize::MAX);
-            let items: Vec<Value> = list.into_iter().take(limit).map(session_summary).collect();
+            // Summaries include the URL, which can carry tokens in the query string, so redact them
+            // too when sanitize is on.
+            let items: Vec<Value> = if sh.sanitize {
+                let p = crate::qol::privacy_settings();
+                list.into_iter().take(limit).map(|s| session_summary(&crate::qol::sanitize(s, &p))).collect()
+            } else {
+                list.into_iter().take(limit).map(session_summary).collect()
+            };
             (200, json!({"total": total, "returned": items.len(), "sessions": items}))
         }
         ("DELETE", "/sessions") => {

@@ -28,8 +28,18 @@ fn tool(name: &str, desc: &str, props: Value, required: &[&str]) -> Value {
            "inputSchema": {"type": "object", "properties": props, "required": required}})
 }
 
-/// The tool list returned by tools/list.
-pub fn tools() -> Vec<Value> {
+/// Tools that only read/inspect (no change to captured data, rules, capture state, settings, the
+/// system proxy, or launching anything). In read-only mode only these are offered and allowed.
+pub fn is_read_tool(name: &str) -> bool {
+    matches!(
+        name,
+        "status" | "list_sessions" | "count_sessions" | "get_session" | "get_bodies"
+            | "list_rules" | "list_snapshots" | "snapshot_details" | "get_autosave" | "export_har"
+    )
+}
+
+/// The tool list returned by tools/list. In read-only mode, mutating tools are omitted.
+pub fn tools(read_only: bool) -> Vec<Value> {
     let filt = json!({
         "host": {"type": "string", "description": "host contains (case-insensitive)"},
         "status": {"type": "string", "description": "exact status (e.g. 404) or class (e.g. 5xx)"},
@@ -38,7 +48,7 @@ pub fn tools() -> Vec<Value> {
     let mut list_props = filt.clone();
     list_props["limit"] = json!({"type": "integer", "description": "max sessions to return (default 50)"});
     let id = json!({"id": {"type": "integer", "description": "session id"}});
-    vec![
+    let all = vec![
         tool("status", "Ferrotap status: capturing on/off, session and rule counts, proxy address.", json!({}), &[]),
         tool("list_sessions", "List captured sessions (id, method, url, status, time, size), optionally filtered.", list_props, &[]),
         tool("count_sessions", "Count captured sessions, optionally filtered.", filt, &[]),
@@ -108,7 +118,12 @@ pub fn tools() -> Vec<Value> {
             json!({"on": {"type": "boolean"}}),
             &["on"],
         ),
-    ]
+    ];
+    if read_only {
+        all.into_iter().filter(|t| is_read_tool(t["name"].as_str().unwrap_or(""))).collect()
+    } else {
+        all
+    }
 }
 
 fn qs(args: &Value, keys: &[&str]) -> String {
@@ -221,7 +236,7 @@ fn rpc_error(id: Value, code: i64, msg: &str) -> Value {
 }
 
 /// Handle one JSON-RPC message (one line). Returns the response line, or None for notifications.
-pub fn handle_line(api: &dyn ApiClient, line: &str) -> Option<String> {
+pub fn handle_line(api: &dyn ApiClient, read_only: bool, line: &str) -> Option<String> {
     let line = line.trim();
     if line.is_empty() {
         return None;
@@ -236,7 +251,7 @@ pub fn handle_line(api: &dyn ApiClient, line: &str) -> Option<String> {
             .as_array()
             .unwrap()
             .iter()
-            .filter_map(|m| handle_line(api, &m.to_string()).and_then(|s| serde_json::from_str(&s).ok()))
+            .filter_map(|m| handle_line(api, read_only, &m.to_string()).and_then(|s| serde_json::from_str(&s).ok()))
             .collect();
         return if out.is_empty() { None } else { Some(Value::Array(out).to_string()) };
     }
@@ -256,14 +271,22 @@ pub fn handle_line(api: &dyn ApiClient, line: &str) -> Option<String> {
                 "protocolVersion": pv,
                 "capabilities": {"tools": {"listChanged": false}},
                 "serverInfo": {"name": "ferrotap", "version": env!("CARGO_PKG_VERSION")},
-                "instructions": "Tools to inspect and control the Ferrotap debugging proxy (captured HTTP sessions, capture on/off, HAR export, Auto Responder rules)."
+                "instructions": if read_only {
+                    "Tools to inspect the Ferrotap debugging proxy (captured HTTP sessions, HAR export, Auto Responder rules). Running in read-only mode: tools that change traffic, rules, capture state or settings are unavailable."
+                } else {
+                    "Tools to inspect and control the Ferrotap debugging proxy (captured HTTP sessions, capture on/off, HAR export, Auto Responder rules)."
+                }
             })
         }
         "ping" => json!({}),
-        "tools/list" => json!({"tools": tools()}),
+        "tools/list" => json!({"tools": tools(read_only)}),
         "tools/call" => {
             let name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            if !tools().iter().any(|t| t["name"] == name) {
+            if read_only && !is_read_tool(name) {
+                let msg = format!("`{name}` is disabled: the Ferrotap MCP server is running in read-only mode.");
+                return Some(json!({"jsonrpc": "2.0", "id": id, "result": {"content": [{"type": "text", "text": msg}], "isError": true}}).to_string());
+            }
+            if !tools(read_only).iter().any(|t| t["name"] == name) {
                 return Some(rpc_error(id, -32602, &format!("unknown tool: {name}")).to_string());
             }
             let args = params.get("arguments").cloned().unwrap_or(json!({}));
@@ -278,10 +301,10 @@ pub fn handle_line(api: &dyn ApiClient, line: &str) -> Option<String> {
 }
 
 /// Serve MCP over the given reader/writer until EOF.
-pub fn serve<R: std::io::BufRead, W: std::io::Write>(api: &dyn ApiClient, input: R, mut output: W) -> std::io::Result<()> {
+pub fn serve<R: std::io::BufRead, W: std::io::Write>(api: &dyn ApiClient, read_only: bool, input: R, mut output: W) -> std::io::Result<()> {
     for line in input.lines() {
         let line = line?;
-        if let Some(resp) = handle_line(api, &line) {
+        if let Some(resp) = handle_line(api, read_only, &line) {
             writeln!(output, "{resp}")?;
             output.flush()?;
         }
